@@ -1,0 +1,2 @@
+# Splashscreen-Holztechnik
+Splash Screen
