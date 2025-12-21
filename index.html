@@ -15,6 +15,30 @@
     <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Firebase SDKs (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global verfügbar machen für React
+        window.firebaseModules = { 
+            initializeApp, 
+            getAuth, 
+            signInAnonymously, 
+            onAuthStateChanged, 
+            signInWithCustomToken,
+            getFirestore, 
+            doc, 
+            onSnapshot, 
+            setDoc, 
+            getDoc, 
+            updateDoc, 
+            increment, 
+            serverTimestamp 
+        };
+    </script>
+
     <!-- Google Fonts: Nunito für den "Game-Look" -->
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
@@ -46,22 +70,17 @@
     <div id="root" class="h-full w-full"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         // --- ICONS ---
         const Icon = ({ name, size = 24, className }) => {
             const icons = {
-                // Mikroskop (Linien-Stil)
                 microscope: <path d="M6 18h8 M3 22h18 M14 22a7 7 0 1 0 0-14h-1 M9 14h2 M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" strokeLinecap="round" strokeLinejoin="round" />,
-                
-                // Zwei Spielkarten (Linien-Stil)
                 cards: <>
                     <rect x="6" y="2" width="12" height="16" rx="2" transform="rotate(-12 12 12)" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.6" />
                     <rect x="6" y="6" width="12" height="16" rx="2" transform="rotate(6 12 12)" stroke="currentColor" strokeWidth="2" fill="white" fillOpacity="0.2" />
                     <path d="M10 10h4 M10 14h2" transform="rotate(6 12 12)" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </>,
-                
-                // Fingerabdruck / Holzmaserung
                 woodfingerprint: <>
                     <path d="M4 22c0-8 3-14 8-20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.9" />
                     <path d="M2 16c2-4 4-8 5-14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.6" />
@@ -70,11 +89,12 @@
                     <path d="M18 22c1-3 2-6 4-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.5" />
                     <path d="M16 2c2 1 4 4 6 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.6" />
                 </>,
-
                 trophy: <path d="M8 21h8 M12 17v4 M7 4h10 M17 4v3a5 5 0 0 1-10 0V4 M6 9h1a5 5 0 0 0 0-10H6v10Z M18 9h-1a5 5 0 0 1 0-10h1v10Z" />,
                 play: <polygon points="5 3 19 12 5 21 5 3" />,
                 lock: <><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
-                star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+                fire: <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.5-3.3a9 9 0 0 0 2.5 2.8Z" />,
+                crown: <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14v2H5v-2z" />
             };
 
             return (
@@ -86,13 +106,151 @@
 
         const App = () => {
             const [showSplash, setShowSplash] = useState(true);
+            const [user, setUser] = useState(null);
+            
+            // Gamification State
+            const [stats, setStats] = useState({
+                streak: 0,
+                lastPlay: null,
+                rankTitle: "Werkstatt-Neuling",
+                rankStars: 1,
+                daysToNext: 10
+            });
 
+            // Firebase Refs
+            const dbRef = useRef(null);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'holztechnik-app';
+
+            // --- HELPER: RANG BERECHNEN ---
+            const calculateRank = (streakDays) => {
+                if (streakDays >= 100) return { title: "Leim-Legende", stars: 6, next: null };
+                if (streakDays >= 50) return { title: "Astloch-Philosoph", stars: 5, next: 100 };
+                if (streakDays >= 30) return { title: "Brett-Bezwinger", stars: 4, next: 50 };
+                if (streakDays >= 20) return { title: "Hobel-Held", stars: 3, next: 30 };
+                if (streakDays >= 10) return { title: "Sägespäne-Produzent", stars: 2, next: 20 };
+                return { title: "Werkstatt-Neuling", stars: 1, next: 10 };
+            };
+
+            // --- FIREBASE INIT ---
             useEffect(() => {
-                const timer = setTimeout(() => {
-                    setShowSplash(false);
-                }, 3000); 
+                const initFirebase = async () => {
+                    if (!window.firebaseModules) {
+                        console.error("Firebase modules not loaded");
+                        return;
+                    }
+                    const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore } = window.firebaseModules;
+                    
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    const app = initializeApp(firebaseConfig);
+                    const auth = getAuth(app);
+                    dbRef.current = getFirestore(app);
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                         await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                        setUser(currentUser);
+                    });
+                    return () => unsubscribe();
+                };
+
+                initFirebase();
+                const timer = setTimeout(() => setShowSplash(false), 3000); 
                 return () => clearTimeout(timer);
             }, []);
+
+            // --- DATA LOADING ---
+            useEffect(() => {
+                if (!user || !dbRef.current) return;
+                const { doc, onSnapshot, setDoc } = window.firebaseModules;
+                const userDocRef = doc(dbRef.current, 'artifacts', appId, 'users', user.uid, 'gamification', 'stats');
+
+                const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const currentStreak = data.streak || 0;
+                        const rankInfo = calculateRank(currentStreak);
+
+                        setStats({
+                            streak: currentStreak,
+                            lastPlay: data.lastPlay || null,
+                            rankTitle: rankInfo.title,
+                            rankStars: rankInfo.stars,
+                            daysToNext: rankInfo.next ? (rankInfo.next - currentStreak) : 0
+                        });
+                    } else {
+                        setDoc(userDocRef, { streak: 0, lastPlay: null });
+                    }
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            // --- HANDLE PLAY & STREAK LOGIC ---
+            const handlePlay = async (e, gameUrl) => {
+                e.preventDefault(); // Erst Datenbank, dann Weiterleitung
+                
+                if (!user || !dbRef.current) {
+                    window.location.href = gameUrl;
+                    return;
+                }
+
+                const { doc, updateDoc } = window.firebaseModules;
+                const userDocRef = doc(dbRef.current, 'artifacts', appId, 'users', user.uid, 'gamification', 'stats');
+                
+                // Datum-Logik
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                
+                let newStreak = stats.streak;
+                let shouldUpdate = false;
+
+                if (!stats.lastPlay) {
+                    // Erstes Spiel überhaupt
+                    newStreak = 1;
+                    shouldUpdate = true;
+                } else {
+                    const lastDate = new Date(stats.lastPlay);
+                    lastDate.setHours(0,0,0,0);
+                    
+                    const diffTime = Math.abs(today - lastDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (diffDays === 1) {
+                        // Gestern gespielt -> Streak +1
+                        newStreak += 1;
+                        shouldUpdate = true;
+                    } else if (diffDays > 1) {
+                        // Länger her -> Streak Reset auf 1 (Neustart heute)
+                        newStreak = 1;
+                        shouldUpdate = true;
+                    } 
+                    // Wenn diffDays === 0 (heute schon gespielt), passiert nichts am Streak
+                }
+
+                if (shouldUpdate) {
+                    try {
+                        await updateDoc(userDocRef, {
+                            streak: newStreak,
+                            lastPlay: new Date().toISOString()
+                        });
+                    } catch (error) {
+                        console.error("Fehler beim Speichern:", error);
+                    }
+                }
+
+                // Weiterleitung zum Spiel
+                window.location.href = gameUrl;
+            };
+
+            const renderStars = (count) => {
+                if (count === 6) return <Icon name="crown" size={14} className="fill-yellow-400 text-yellow-600" />;
+                return Array(count).fill(0).map((_, i) => (
+                    <Icon key={i} name="star" size={12} className="fill-yellow-400 text-yellow-500" />
+                ));
+            };
 
             const games = [
                 {
@@ -163,14 +321,25 @@
                             <span className="font-black text-slate-700 text-xl tracking-tight hidden sm:block">HOLZTECHNIK</span>
                         </div>
                         
-                        {/* Gamification XP Anzeige */}
-                        <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                            <div className="bg-yellow-400 p-1 rounded-full text-white shadow-sm">
-                                <Icon name="star" size={12} className="fill-current" />
+                        {/* RANG & STREAK ANZEIGE */}
+                        <div className="flex gap-2">
+                            {/* Streak Flamme */}
+                            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-100 bg-orange-50 ${stats.streak > 0 ? 'opacity-100' : 'opacity-60 grayscale'}`}>
+                                <div className={`${stats.streak > 0 ? 'text-orange-500 animate-pulse' : 'text-slate-400'}`}>
+                                    <Icon name="fire" size={16} className="fill-current" />
+                                </div>
+                                <span className="text-xs font-black text-slate-700">{stats.streak}</span>
                             </div>
-                            <div className="flex flex-col items-start mr-1">
-                                <span className="text-[10px] font-bold text-slate-400 leading-none uppercase tracking-wider">Level 1</span>
-                                <span className="text-xs font-black text-slate-700 leading-none">Anfänger</span>
+
+                            {/* Rang Anzeige */}
+                            <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                                <div className="flex items-center gap-0.5 bg-white px-1.5 py-1 rounded-full shadow-sm">
+                                    {renderStars(stats.rankStars)}
+                                </div>
+                                <div className="flex flex-col items-start mr-1 min-w-[60px]">
+                                    <span className="text-[9px] font-bold text-slate-400 leading-none uppercase tracking-wider mb-0.5">Dein Rang</span>
+                                    <span className="text-[11px] font-black text-slate-700 leading-none whitespace-nowrap">{stats.rankTitle}</span>
+                                </div>
                             </div>
                         </div>
                     </header>
@@ -180,10 +349,24 @@
                         
                         <div className="px-6 mb-6 text-center">
                             <h2 className="text-2xl font-black text-slate-800 mb-1">Wähle dein Lernspiel</h2>
-                            <p className="text-slate-500 font-medium text-sm">Sammle Erfahrungspunkte durch das Absolvieren von Modulen.</p>
+                            {stats.daysToNext > 0 ? (
+                                <p className="text-slate-500 font-medium text-xs">
+                                    Noch <span className="text-orange-600 font-bold">{stats.daysToNext} Tage</span> in Folge bis zum nächsten Rang!
+                                </p>
+                            ) : (
+                                <p className="text-amber-600 font-bold text-xs">Maximaler Rang erreicht!</p>
+                            )}
+                            
+                            {/* Progress Bar (Visuell für Streak) */}
+                            <div className="w-32 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 overflow-hidden">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-500" 
+                                    style={{ width: `${Math.min(100, (stats.streak % 10) * 10)}%` }} // Einfache Visualisierung
+                                ></div>
+                            </div>
                         </div>
 
-                        {/* HORIZONTALES LAYOUT (Scrollbar) */}
+                        {/* HORIZONTALES LAYOUT */}
                         <div className="flex items-center overflow-x-auto hide-scrollbar snap-x snap-mandatory px-6 py-8 gap-5 pb-8 w-full">
                             
                             {games.map((game) => (
@@ -195,7 +378,6 @@
                                         flex flex-col overflow-hidden 
                                         transform transition-all duration-300 
                                         border-4 border-white ring-1 ring-slate-100
-                                        /* Hover Effekte bleiben erhalten */
                                         ${!game.disabled ? 'md:hover:-translate-y-2 md:hover:shadow-2xl' : ''}
                                         active:scale-95
                                     `}
@@ -237,7 +419,7 @@
 
                                         <a 
                                             href={game.url}
-                                            onClick={(e) => game.disabled && e.preventDefault()}
+                                            onClick={(e) => handlePlay(e, game.url)}
                                             className={`w-full mt-4 py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg shadow-sky-200/50 transition-all duration-300
                                                 ${game.disabled 
                                                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
