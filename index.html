@@ -491,7 +491,10 @@
 </div>
 
 <script type="module">
-// 👉 4. DATENBANK & LOGIK (JAVASCRIPT)  HIER ANBINDUNG ZU FIREBASE! 
+// -------------------------------------------------------------
+// ❎ DATENBANK & LOGIK (JAVASCRIPT)  HIER ANBINDUNG ZU FIREBASE
+// -------------------------------------------------------------
+ 4. DATENBANK & LOGIK (JAVASCRIPT)  HIER ANBINDUNG ZU FIREBASE! 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, collection, query, orderBy, limit, getDocs, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -537,9 +540,8 @@ const getPublicDataRef = (coll, docId) => {
     return collection(db, 'artifacts', appId, 'public', 'data', coll);
 };
 
-// -------------------------------------------------------------
 // WAKE LOCK (BILDSCHIRM WACH HALTEN)
-// -------------------------------------------------------------
+
 let wakeLock = null;
 async function requestWakeLock() {
     if ('wakeLock' in navigator) {
@@ -638,7 +640,9 @@ function checkRun() {
     }
 }
 
-// 👉 5. ATTRIBUTE & EIGENSCHAFTEN (Updated)
+// -------------------------------------------------------------
+// ❎ ATTRIBUTE & EIGENSCHAFTEN
+// -------------------------------------------------------------
 const attributeInfo={
     druckfestigkeit: { icon: '🗜', name: 'Druckfestigkeit', unit: '(N/mm²)', logic: 'Hoch gewinnt', default: true, description: 'Die Druckfestigkeit (N/mm²) beschreibt, mit wie viel Druck das Holz in Faserrichtung belastet werden kann, bevor es zum Bruch kommt.' },
     rohdichte: { icon: '💎', name: 'Rohdichte', unit: '(kg/m³)', logic: 'Hoch gewinnt', default: true, description: 'Die Normal-Rohdichte beschreibt das Gewicht des Holzes in kg/m³. Er bezieht sich auf das Normalklima bei ca. 12 % Holzfeuchte (DIN 68364). Sie korreliert oft mit der Festigkeit von Hölzern.' },
@@ -657,6 +661,9 @@ function getRandomDefaultAttributes() {
     }
     return keys.slice(0, 5);
 }
+// -------------------------------------------------------------
+// ❎ SOUNDEFFEKTE ZU VERLINKT
+// -------------------------------------------------------------
 
 let activeAttributeKeys = getRandomDefaultAttributes();
 
@@ -679,7 +686,9 @@ function setOpponentNameBackVisible(v){ localStorage.setItem('holzquartett_showO
 const IMG_BASE = "https://github.com/aufdemholzweg/HOLZEN/blob/main/images";
 const IMG_SUFFIX = "?raw=true";
 
-//👉 6. KARTEN DATEN
+// -------------------------------------------------------------
+// ❎ KARTEN DATEN
+// -------------------------------------------------------------
 const woodCards=[
  {name:"Ahorn", dk:"5", druckfestigkeit:60, quellen:6, rohdichte:650, emodul:9500, preis:2, imgTree:`${IMG_BASE}/ahorn_1.jpeg${IMG_SUFFIX}`, imgCross:`${IMG_BASE}/ahorn_2.jpeg${IMG_SUFFIX}`},
  {name:"Birke", dk:"5", druckfestigkeit:50, quellen:8, rohdichte:650, emodul:14500, preis:2, imgTree:`${IMG_BASE}/birke_1.jpeg${IMG_SUFFIX}`, imgCross:`${IMG_BASE}/birke_2.jpeg${IMG_SUFFIX}`},
@@ -714,8 +723,9 @@ const woodCards=[
 ];
 
 // -------------------------------------------------------------
-// 👉 WISSENSKARTEN-DATEN
+// ❎ ZUSATZWISSEN DER KARTEN
 // -------------------------------------------------------------
+
 const detailedWoodInfo = {
     "Ahorn": `<div class="text-xs font-bold mb-2">🟩 Heimisch (Europa)</div>
               <p class="mb-2">Das fast weiße bis gelblich weiße Holz ist geruchlos und lässt sich mechanisch gut bearbeiten. Es eignet sich hervorragend zum Beizen und Polieren.</p>
@@ -869,7 +879,9 @@ const detailedWoodInfo = {
 };
 const reflectionQuestions=[ "Welches Holz würdest du für Gartenmöbel wählen und warum?", "Eine Küchenarbeitsplatte muss schnittfest sein. Welches Holz eignet sich?", "Für einen Dielenboden: Hartes oder weiches Holz?", "Warum ist Teak im Schiffbau so beliebt?" ];
 
-//👉 7. QUIZ FRAGEN (FÜR DAS STECHEN) -  MIT ERKLÄRUNG
+// -------------------------------------------------------------
+// ❎ QUIZ FRAGEN (FÜR DAS STECHEN) -  MIT ERKLÄRUNG
+// -------------------------------------------------------------
 const quizQuestions = [
     {q:"Was passiert mit dem Volumen von Holz, wenn es unterhalb des Fasersättigungsbereiches Feuchtigkeit aufnimmt?", o:["Es schwindet","Es quillt","Bleibt gleich","Wird leichter"], c:1, e:"Wasser lagert sich in die Zellwände ein und drückt sie auseinander."},
     {q:"In welcher anatomischen Richtung sind das Quellen und Schwinden von Holz am stärksten ausgeprägt?", o:["Längsrichtung","Radialrichtung","Tangential","Überall gleich"], c:2, e:"Tangential arbeitet Holz etwa doppelt so stark wie radial."},
@@ -931,7 +943,9 @@ function showHappyWorm() {
     const t = document.getElementById('happyKlotziText');
     if(!k) return;
 
-    //👉 MOTIVATIONSSPRÜCHE
+// -------------------------------------------------------------
+// ❎ MOTIVARTIONSSPRÜCHE VON KLOTZI
+// -------------------------------------------------------------
     const cheers = ["Stark!", "Super!", "Punkt für uns!", "Weiter so!", "Hammerhart!", "Klasse!", "Holz-Meister!", "Holzklasse!", "Jawoll!", "Sauber!", "richtiges Brett!", "Maßarbeit!", "Stabil!"];
     if(t) t.childNodes[0].nodeValue = cheers[Math.floor(Math.random() * cheers.length)];
 
@@ -1055,7 +1069,9 @@ function getNumericValue(val, attr) {
     return parseFloat(val);
 }
 
-// 👉 8. DAS QUIZ STARTEN (Mit 4500ms Timer)
+// -------------------------------------------------------------
+// ❎ EINSTELLUNGEN ZUM QUIZ ->QUIZ STARTET (AUCH FÜR TIMER)
+// -------------------------------------------------------------
 function startTieBreakerQuiz(qIndex, callback) {
     const modal = document.getElementById('quizModal');
     const timerBar = document.getElementById('quizTimerBar');
